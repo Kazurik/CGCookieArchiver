@@ -29,4 +29,5 @@ goto "https://cgcookiearchive.com/"
 findWID "header-login-form-toggle" |> click
 setText (findWID "user_login") username
 setText (findWID "user_pass")  password
+click (findWID "wp-submit")
 exit 0 // return an integer exit code
