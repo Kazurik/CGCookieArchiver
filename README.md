@@ -6,6 +6,6 @@ In the working directory of the program you need a credentials.txt file with you
 
 Example credentials.txt:
 ```
-username@gmail.com
+username
 SuperSecurePassword
 ```
