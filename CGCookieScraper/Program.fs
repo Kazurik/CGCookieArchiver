@@ -23,6 +23,9 @@ let findWID id = wait.Until(ExpectedConditions.ElementIsVisible(By.Id(id)))
 
 [<EntryPoint>]
 let main argv = 
+    if (not (System.IO.File.Exists("credentials.txt"))) then
+        printfn "You need a credentials.txt with your username and password on the first 2 lines."
+        exit 1
     goto "https://cgcookiearchive.com/"
     findWID "header-login-form-toggle" |> click
     setText (findWID "user_login") username
