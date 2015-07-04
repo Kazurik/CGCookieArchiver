@@ -48,21 +48,23 @@ let rec parseContainer (elements:IWebElement seq) =
                   |> Seq.toList
                   |> List.map(fun f -> Container(f.FindElement(By.XPath("./*[1]")).Text, parseContainer (f.FindElements(By.XPath("./dl/dt")))))
     List.append folders links
-    (*
-    for ele in elements do
-        let firstChild = ele.FindElement(By.XPath("./*[1]"))
-        if firstChild.TagName = "h3" then
-            printfn "Container found: %s->%s" name (firstChild.Text)
-            Container(firstChild.Text, parseContainer firstChild.Text (ele.FindElements(By.XPath("./dl/dt"))))
-        else
-            printfn "Link found: %s->%s" name firstChild.Text
-            Link(firstChild.GetAttribute("href"), firstChild.Text)
-            *)
 
 let rec printTree tree prefix =
     match tree with
     | Container(name, nodes) -> printfn "%s-->%s" prefix name; nodes |> List.iter (fun n -> printTree n (prefix + "-->" + name))
     | Link(url, name) -> printfn "%s--:%s (%s)" prefix name url
+
+//Get all the links and file structure we will need for the export
+if (not (System.IO.File.Exists("bookmarks.html"))) then
+    printfn "You must have a bookmarks.html in the working directory. See the readme."
+    exit 1
+goto ("file:///" + (System.IO.Path.Combine(System.Environment.CurrentDirectory, "bookmarks.html")))
+let eles = findsWX "/html/body/dl/dt"
+printfn "Count: %d" (Seq.length eles)
+eles |> Seq.iter (fun e -> printfn "%s" (text e))
+let result = Container("Root", parseContainer eles)
+
+//Log in
 (*
 goto "https://cgcookiearchive.com/"
 findWID "header-login-form-toggle" |> click
@@ -70,16 +72,9 @@ setText (findWID "user_login") username
 setText (findWID "user_pass")  password
 click (findWID "wp-submit")
 *)
-goto ("file:///" + (System.IO.Path.Combine(System.Environment.CurrentDirectory, "bookmarks.html")))
-let eles = findsWX "/html/body/dl/dt"
-printfn "Count: %d" (Seq.length eles)
-eles |> Seq.iter (fun e -> printfn "%s" (text e))
-let result = Container("Root", parseContainer eles)
-printTree result ""
-//driver.ExecuteScript("return document.documentElement.outerHTML")
 
-//goto "file:///C:/Users/David/OneDrive/Documents/Works/fsharp/CGCookieArchiver/CGCookieScraper/bin/Debug/bookmarks.html"
+//Download all content related to our links
+//TODO: The actual downloading.
 
-System.Console.ReadLine() |> ignore
 driver.Close()
 exit 0 // return an integer exit code
