@@ -4,7 +4,8 @@
 open OpenQA.Selenium
 open OpenQA.Selenium.Support.UI
 
-let driver = new Firefox.FirefoxDriver()
+let driver = new OpenQA.Selenium.Firefox.FirefoxDriver()
+
 let wait = new WebDriverWait(driver, System.TimeSpan.FromSeconds(10.))
 let username,password = 
     let fin = System.IO.File.ReadAllLines("credentials.txt")

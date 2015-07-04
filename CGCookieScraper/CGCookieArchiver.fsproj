@@ -8,7 +8,7 @@
     <ProjectGuid>6b4bf273-8835-4ac4-9c2c-b5fa7ec6b417</ProjectGuid>
     <OutputType>Exe</OutputType>
     <RootNamespace>CGCookieScraper</RootNamespace>
-    <AssemblyName>CGCookieScraper</AssemblyName>
+    <AssemblyName>CGCookieArchiver</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <TargetFSharpCoreVersion>4.3.1.0</TargetFSharpCoreVersion>
