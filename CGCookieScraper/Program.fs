@@ -3,6 +3,7 @@
 
 open OpenQA.Selenium
 open OpenQA.Selenium.Support.UI
+open System.Net
 
 type InputNodes = 
     | Link of URL:string * Name:string
@@ -29,6 +30,10 @@ let setText (element:IWebElement) text = element.SendKeys(text)
 
 let findWID id = wait.Until(ExpectedConditions.ElementIsVisible(By.Id(id)))
 
+let findWT tag = wait.Until(ExpectedConditions.ElementExists(By.TagName(tag)))
+
+let findWLX xpath = wait.Until(ExpectedConditions.PresenceOfAllElementsLocatedBy(By.XPath(xpath)))
+
 let findsWT tag = wait.Until(ExpectedConditions.VisibilityOfAllElementsLocatedBy(By.TagName(tag)))
 
 let findsWX xpath = wait.Until(ExpectedConditions.VisibilityOfAllElementsLocatedBy(By.XPath(xpath)))
@@ -43,17 +48,61 @@ let rec parseContainer (elements:IWebElement seq) =
                 |> Seq.filter(fun e -> e.FindElement(By.XPath("./*[1]")).TagName = "a") 
                 |> Seq.toList 
                 |> List.map(fun e -> toLink e)
+                |> List.filter (fun l -> match l with | Link(url, name) -> url.ToLower().Contains("cgcookie") | _ -> false)
+                |> List.map(fun l -> match l with | Link(url,name) -> Link(url.ToLower().Replace("cgcookie.com", "cgcookiearchive.com"), name))
     let folders = elements 
                   |> Seq.filter(fun e -> e.FindElement(By.XPath("./*[1]")).TagName = "h3")
                   |> Seq.toList
                   |> List.map(fun f -> Container(f.FindElement(By.XPath("./*[1]")).Text, parseContainer (f.FindElements(By.XPath("./dl/dt")))))
+                  |> List.filter(fun c -> match c with | Container(name, nodes) -> Seq.length  nodes > 0 | _ -> false)
     List.append folders links
 
+let rec fout = System.IO.File.CreateText("out.txt")
 let rec printTree tree prefix =
     match tree with
-    | Container(name, nodes) -> printfn "%s-->%s" prefix name; nodes |> List.iter (fun n -> printTree n (prefix + "-->" + name))
-    | Link(url, name) -> printfn "%s--:%s (%s)" prefix name url
+    | Container(name, nodes) -> fprintf fout "%s-->%s\n" prefix name; nodes |> List.iter (fun n -> printTree n (prefix + "-->" + name))
+    | Link(url, name) -> fprintf fout "%s--:%s (%s)\n" prefix name url
 
+let clientDownload (url:string) extension=
+    let client = new WebClient()
+    let header = (driver.Manage().Cookies.AllCookies) |> Seq.fold (fun acum s -> acum + s.Name + "=" + s.Value + ";") ""
+    client.Headers.Add(HttpRequestHeader.Cookie, header)
+    let agent = string (driver.ExecuteScript("return navigator.userAgent"))
+    client.Headers.Add("user-agent", agent)
+    let stream = client.OpenRead(url)
+    let starti = 
+        if (url.Contains("/post_id")) then url.Substring(0, url.IndexOf("/?post_id")).LastIndexOf("/") + 1
+        else 0
+    let endi = url.IndexOf("/?post_id")
+    let len = endi - starti
+    let filename = 
+        if len > 0 then url.Substring(starti, len) + extension
+        else url.Substring(url.LastIndexOf("/") + 1)
+    use fout = System.IO.File.Create(System.IO.Path.Combine(System.Environment.CurrentDirectory, filename))
+    stream.CopyTo(fout)
+
+let downloadVideo () = 
+    try
+        //wait.Until(ExpectedConditions.ElementExists(By.ClassName("post-downloads-toggle"))).Click()
+        driver.FindElement(By.ClassName("post-downloads-toggle")).Click()
+        let videoLink = findWLX "//div[@class='post-downloads']/a" |> Seq.filter (fun e -> e.Text.Trim() = "HD Video")
+        if Seq.length videoLink > 0 then
+            videoLink |> Seq.iteri(fun i a -> clientDownload (a.GetAttribute("href")) ".zip")
+        else
+            failwith "Video not found"
+    with
+        _ -> try clientDownload ((findWT "source").GetAttribute("src")) ".mp4" with _ -> ()
+
+let downloadNoneVideoFiles () =
+    try
+        //wait.Until(ExpectedConditions.ElementExists(By.ClassName("post-downloads-toggle"))).Click()
+        driver.FindElement(By.ClassName("post-downloads-toggle")).Click()
+        let fileLink = findWLX "//div[@class='post-downloads']/a" |> Seq.filter (fun e -> e.Text.Trim() <> "HD Video")
+        fileLink |> Seq.iter (fun e -> printfn "%s" e.Text)
+        if Seq.length fileLink > 0 then
+            fileLink |> Seq.iter (fun a -> printfn "Saving"; clientDownload (a.GetAttribute("href")) "_files.zip"; printfn "Saved")
+    with _ -> ()
+(*
 //Get all the links and file structure we will need for the export
 if (not (System.IO.File.Exists("bookmarks.html"))) then
     printfn "You must have a bookmarks.html in the working directory. See the readme."
@@ -61,20 +110,28 @@ if (not (System.IO.File.Exists("bookmarks.html"))) then
 goto ("file:///" + (System.IO.Path.Combine(System.Environment.CurrentDirectory, "bookmarks.html")))
 let eles = findsWX "/html/body/dl/dt"
 printfn "Count: %d" (Seq.length eles)
-eles |> Seq.iter (fun e -> printfn "%s" (text e))
 let result = Container("Root", parseContainer eles)
+printTree result ""
+*)
+
+//goto "https://cgcookiearchive.com/concept/lessons/1-software-tablets/"
+//printfn "Url: %s" ((findWT "source").GetAttribute("src"))
 
 //Log in
-(*
 goto "https://cgcookiearchive.com/"
 findWID "header-login-form-toggle" |> click
 setText (findWID "user_login") username
 setText (findWID "user_pass")  password
 click (findWID "wp-submit")
-*)
+
+//goto "https://cgcookiearchive.com/blender/lessons/4-4-4-exercise-throwing-ball/"
+goto "https://cgcookiearchive.com/concept/lessons/1-software-tablets/"
+//goto "https://cgcookiearchive.com/unity/cgc-courses/crash-course-breakout-particles-mini-course/"
+downloadVideo ()
 
 //Download all content related to our links
 //TODO: The actual downloading.
 
+System.Console.ReadLine()
 driver.Close()
 exit 0 // return an integer exit code
