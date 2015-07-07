@@ -4,6 +4,8 @@
 open OpenQA.Selenium
 open OpenQA.Selenium.Support.UI
 open System.Net
+open System.IO
+open System
 
 type InputNodes = 
     | Link of URL:string * Name:string
@@ -102,7 +104,17 @@ let downloadNoneVideoFiles () =
         if Seq.length fileLink > 0 then
             fileLink |> Seq.iter (fun a -> printfn "Saving"; clientDownload (a.GetAttribute("href")) "_files.zip"; printfn "Saved")
     with _ -> ()
-(*
+
+let rec saveNodesToDisk path container =
+    match container with 
+    | Container(name, links) -> //Create direcotries and then save all the links data
+                                let newPath = System.IO.Path.Combine(path, name)
+                                System.IO.Directory.CreateDirectory(newPath) |> ignore
+                                links |> List.iter (fun l -> match l with | Link(_,_) -> saveNodesToDisk newPath l | _ -> ())
+                                links |> List.filter (fun l -> match l with | Container(_,_) -> true | _ -> false) |> List.iter (saveNodesToDisk newPath)
+    | Link(url, name) -> //Save all the links data 
+                         File.CreateText(Path.Combine(path, name)) |> ignore
+
 //Get all the links and file structure we will need for the export
 if (not (System.IO.File.Exists("bookmarks.html"))) then
     printfn "You must have a bookmarks.html in the working directory. See the readme."
@@ -110,12 +122,8 @@ if (not (System.IO.File.Exists("bookmarks.html"))) then
 goto ("file:///" + (System.IO.Path.Combine(System.Environment.CurrentDirectory, "bookmarks.html")))
 let eles = findsWX "/html/body/dl/dt"
 printfn "Count: %d" (Seq.length eles)
-let result = Container("Root", parseContainer eles)
+let result = Container("Output", parseContainer eles)
 printTree result ""
-*)
-
-//goto "https://cgcookiearchive.com/concept/lessons/1-software-tablets/"
-//printfn "Url: %s" ((findWT "source").GetAttribute("src"))
 
 //Log in
 goto "https://cgcookiearchive.com/"
@@ -124,14 +132,20 @@ setText (findWID "user_login") username
 setText (findWID "user_pass")  password
 click (findWID "wp-submit")
 
+//Save all links with correct file structure to disc
+if (not (Directory.Exists(Path.Combine(Environment.CurrentDirectory, "Output")))) then
+    Directory.CreateDirectory(Path.Combine(Environment.CurrentDirectory, "Output")) |> ignore
+
+saveNodesToDisk (Path.Combine(Environment.CurrentDirectory)) result
+
 //goto "https://cgcookiearchive.com/blender/lessons/4-4-4-exercise-throwing-ball/"
-goto "https://cgcookiearchive.com/concept/lessons/1-software-tablets/"
+//goto "https://cgcookiearchive.com/concept/lessons/1-software-tablets/"
 //goto "https://cgcookiearchive.com/unity/cgc-courses/crash-course-breakout-particles-mini-course/"
-downloadVideo ()
+//downloadVideo ()
 
 //Download all content related to our links
 //TODO: The actual downloading.
 
-System.Console.ReadLine()
+System.Console.ReadLine() |> ignore
 driver.Close()
 exit 0 // return an integer exit code
